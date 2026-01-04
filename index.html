@@ -3,82 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Runner Mobile</title>
+    <title>Neon Runner (Stable Speed)</title>
     <style>
-        /* মোবাইলে স্ক্রলিং বা জুম বন্ধ করার জন্য */
         body { 
             margin: 0; 
             overflow: hidden; 
             background: #000; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: none; /* খুব গুরুত্বপূর্ণ: টাচ করলে পেজ নড়বে না */
+            font-family: 'Segoe UI', sans-serif;
+            touch-action: none; 
             user-select: none;
         }
         
         #ui-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
 
         #score-board {
             padding: 20px;
-            color: #00ffff;
-            font-size: 24px;
+            color: #00ff88; /* Green for stable feel */
+            font-size: 28px;
             font-weight: bold;
-            text-shadow: 0 0 10px #00ffff;
-            text-align: left;
+            text-shadow: 0 0 10px #00ff88;
             z-index: 10;
         }
 
         #game-over-screen {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             display: none;
             pointer-events: auto;
-            background: rgba(0, 0, 0, 0.9);
-            padding: 30px;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
             width: 80%;
             max-width: 400px;
-            border: 2px solid #ff0055;
+            border: 2px solid #00ff88;
             border-radius: 15px;
-            box-shadow: 0 0 20px #ff0055;
+            box-shadow: 0 0 30px #00ff88;
             z-index: 20;
         }
 
-        h1 { color: #ff0055; margin: 0 0 10px 0; text-transform: uppercase; font-size: 32px; }
-        p { color: #fff; font-size: 18px; }
-        
+        h1 { color: #fff; margin: 0 0 15px 0; text-transform: uppercase; font-size: 32px; }
         button {
-            background: #00ffff;
-            color: #000;
-            border: none;
-            padding: 15px 40px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
+            background: #00ff88; color: #000; border: none;
+            padding: 15px 50px; font-size: 22px; font-weight: bold;
+            cursor: pointer; margin-top: 20px; border-radius: 50px;
             text-transform: uppercase;
-            border-radius: 50px;
-            touch-action: manipulation;
         }
-        button:active { background: #fff; transform: scale(0.95); }
+        button:active { transform: scale(0.95); }
 
         .controls-hint {
-            color: rgba(255, 255, 255, 0.6);
-            text-align: center;
-            padding-bottom: 30px;
-            font-size: 14px;
-            text-shadow: 1px 1px 2px #000;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center; padding-bottom: 30px; font-size: 14px;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -87,156 +67,123 @@
 
     <div id="ui-container">
         <div id="score-board">SCORE: <span id="score">0</span></div>
-        <div class="controls-hint">PC: Arrows | Mobile: Swipe Left/Right/Up</div>
+        <div class="controls-hint">PC: Arrows | Mobile: Swipe</div>
     </div>
 
     <div id="game-over-screen">
-        <h1>Game Over</h1>
-        <p>Score: <span id="final-score">0</span></p>
-        <button onclick="restartGame()">Try Again</button>
+        <h1 style="color:#ff4444">CRASHED!</h1>
+        <p style="color:#fff; font-size:20px;">Score: <span id="final-score">0</span></p>
+        <button onclick="restartGame()">Play Again</button>
     </div>
 
     <script>
-        // --- গেম ভেরিয়েবল ---
+        // --- গেম কনফিগারেশন (এখানে স্পিড চেঞ্জ করতে পারবেন) ---
+        const GAME_SPEED = 0.6; // স্পিড ফিক্সড রাখা হলো (কম/বেশি হবে না)
+        const OBSTACLE_SPAWN_RATE = 1200; // কতক্ষণ পর পর বাধা আসবে (মিলিসেকেন্ড)
+
         let scene, camera, renderer;
-        let player, floor, gridHelper;
+        let player, floor;
         let obstacles = [];
         let score = 0;
         let isGameOver = false;
-        let gameSpeed = 0.5;
         
-        // প্লেয়ার সেটিংস
-        let currentLane = 0; // -1, 0, 1
+        // প্লেয়ার ভেরিয়েবল
+        let currentLane = 0; 
         const laneWidth = 3;
-        const playerSpeed = 0.2; 
+        const playerLerpSpeed = 0.2; 
         let isJumping = false;
         let jumpVelocity = 0;
         const gravity = 0.025;
         const jumpStrength = 0.6;
 
-        // টাচ ভেরিয়েবল (মোবাইল কন্ট্রোল)
+        // টাচ ভেরিয়েবল
         let touchStartX = 0;
         let touchStartY = 0;
 
-        const COLORS = {
-            floor: 0x1a1a2e,
-            player: 0x00ffff,
-            obstacle: 0xff0055,
-            sky: 0x050510,
-            grid: 0x5555ff
-        };
-
         function init() {
-            // ১. সিন সেটআপ
+            // ১. সিন তৈরি
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(COLORS.sky);
-            scene.fog = new THREE.Fog(COLORS.sky, 10, 60);
+            scene.background = new THREE.Color(0x101010);
+            scene.fog = new THREE.Fog(0x101010, 20, 80); // কুয়াশা এফেক্ট যাতে দূরের জিনিস লোড নিতে সমস্যা না হয়
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(0, 4, 7);
-            camera.lookAt(0, 0, -5);
+            camera.position.set(0, 4, 8);
+            camera.lookAt(0, 0, -10);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
+            // শ্যাডো বন্ধ রাখা হলো পারফরম্যান্স বাড়ানোর জন্য (ল্যাগ কমাবে)
+            renderer.shadowMap.enabled = false; 
             document.body.appendChild(renderer.domElement);
 
             // ২. আলো
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambientLight);
-
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(5, 15, 10);
-            dirLight.castShadow = true;
-            // শ্যাডো অপটিমাইজেশন মোবাইলের জন্য
-            dirLight.shadow.mapSize.width = 1024;
-            dirLight.shadow.mapSize.height = 1024;
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            dirLight.position.set(0, 20, 10);
             scene.add(dirLight);
 
-            // ৩. পরিবেশ
-            const planeGeometry = new THREE.PlaneGeometry(100, 400);
-            const planeMaterial = new THREE.MeshPhongMaterial({ color: COLORS.floor });
-            floor = new THREE.Mesh(planeGeometry, planeMaterial);
+            // ৩. ফ্লোর (গ্রিড দিয়ে হালকা লুক)
+            const gridHelper = new THREE.GridHelper(200, 100, 0x00ff88, 0x222222);
+            gridHelper.position.y = 0;
+            gridHelper.position.z = -50;
+            scene.add(gridHelper);
+            
+            // ফ্লোর প্লেন (কালো রাস্তা)
+            const planeGeo = new THREE.PlaneGeometry(200, 400);
+            const planeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            floor = new THREE.Mesh(planeGeo, planeMat);
             floor.rotation.x = -Math.PI / 2;
             floor.position.z = -100;
-            floor.receiveShadow = true;
+            floor.position.y = -0.1;
             scene.add(floor);
 
-            gridHelper = new THREE.GridHelper(100, 50, COLORS.grid, COLORS.grid);
-            gridHelper.position.y = 0.02;
-            gridHelper.position.z = -100;
-            scene.add(gridHelper);
-
-            // ৪. প্লেয়ার
-            const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
-            const playerMaterial = new THREE.MeshStandardMaterial({ 
-                color: COLORS.player,
-                emissive: 0x002244,
-                roughness: 0.1
-            });
-            player = new THREE.Mesh(playerGeometry, playerMaterial);
+            // ৪. প্লেয়ার (Cube)
+            const playerGeo = new THREE.BoxGeometry(1, 1, 1);
+            const playerMat = new THREE.MeshLambertMaterial({ color: 0x00ff88 }); // Neon Green
+            player = new THREE.Mesh(playerGeo, playerMat);
             player.position.y = 0.5;
-            player.castShadow = true;
             scene.add(player);
 
-            // ৫. কন্ট্রোল সেটআপ
-            // কীবোর্ড
+            // ইভেন্ট লিসেনার
             document.addEventListener('keydown', handleKeyboard);
-            
-            // টাচ স্ক্রিন (মোবাইল)
-            document.addEventListener('touchstart', handleTouchStart, false);
-            document.addEventListener('touchend', handleTouchEnd, false);
-            
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            });
+            document.addEventListener('touchend', handleTouchEnd);
             window.addEventListener('resize', onWindowResize);
 
             animate();
             spawnObstacleLoop();
         }
 
-        // --- কীবোর্ড কন্ট্রোল ---
-        function handleKeyboard(event) {
+        // --- ইনপুট হ্যান্ডলিং ---
+        function handleKeyboard(e) {
             if (isGameOver) return;
-            if (event.key === 'ArrowLeft') moveLeft();
-            else if (event.key === 'ArrowRight') moveRight();
-            else if ((event.key === 'ArrowUp' || event.code === 'Space')) jump();
+            if (e.key === 'ArrowLeft') move(-1);
+            if (e.key === 'ArrowRight') move(1);
+            if (e.key === 'ArrowUp' || e.code === 'Space') jump();
         }
 
-        // --- টাচ কন্ট্রোল (মোবাইল লজিক) ---
-        function handleTouchStart(evt) {
-            touchStartX = evt.changedTouches[0].screenX;
-            touchStartY = evt.changedTouches[0].screenY;
-        }
-
-        function handleTouchEnd(evt) {
+        function handleTouchEnd(e) {
             if (isGameOver) return;
-            let touchEndX = evt.changedTouches[0].screenX;
-            let touchEndY = evt.changedTouches[0].screenY;
-            handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
-        }
-
-        function handleSwipe(startX, startY, endX, endY) {
-            let diffX = endX - startX;
-            let diffY = endY - startY;
-
-            // যদি X অক্ষে মুভমেন্ট Y এর চেয়ে বেশি হয়, তাহলে এটা ডানে/বামে সোয়াইপ
-            if (Math.abs(diffX) > Math.abs(diffY)) {
-                if (Math.abs(diffX) > 30) { // অন্তত ৩০ পিক্সেল সোয়াইপ হতে হবে
-                    if (diffX > 0) moveRight();
-                    else moveLeft();
-                }
-            } 
-            // অন্যথায় এটা জাম্প (সোয়াইপ আপ বা ট্যাপ)
-            else {
-                if (diffY < -30 || Math.abs(diffX) + Math.abs(diffY) < 10) { 
-                    // উপরে সোয়াইপ অথবা জাস্ট ট্যাপ
-                    jump();
-                }
+            let dx = e.changedTouches[0].screenX - touchStartX;
+            let dy = e.changedTouches[0].screenY - touchStartY;
+            
+            if (Math.abs(dx) > Math.abs(dy)) { // Horizontal swipe
+                if (Math.abs(dx) > 30) move(dx > 0 ? 1 : -1);
+            } else { // Vertical swipe / tap
+                if (dy < -30 || Math.abs(dx) + Math.abs(dy) < 10) jump();
             }
         }
 
-        // --- মুভমেন্ট ফাংশন ---
-        function moveLeft() { if (currentLane > -1) currentLane--; }
-        function moveRight() { if (currentLane < 1) currentLane++; }
+        function move(dir) {
+            if ((dir === -1 && currentLane > -1) || (dir === 1 && currentLane < 1)) {
+                currentLane += dir;
+            }
+        }
+
         function jump() {
             if (!isJumping) {
                 isJumping = true;
@@ -244,66 +191,64 @@
             }
         }
 
-        // --- গেম লজিক ---
+        // --- অবস্টাকল সিস্টেম ---
         function spawnObstacle() {
             if (isGameOver) return;
-            const geometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
-            const material = new THREE.MeshStandardMaterial({ color: COLORS.obstacle });
-            const obstacle = new THREE.Mesh(geometry, material);
             
-            const lane = Math.floor(Math.random() * 3) - 1;
-            obstacle.position.set(lane * laneWidth, 0.6, -80);
-            obstacle.castShadow = true;
-            obstacle.receiveShadow = true;
-
-            scene.add(obstacle);
-            obstacles.push(obstacle);
+            const geo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+            const mat = new THREE.MeshLambertMaterial({ color: 0xff0044 }); // Red Obstacle
+            const ob = new THREE.Mesh(geo, mat);
+            
+            const lane = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
+            ob.position.set(lane * laneWidth, 0.6, -100); // অনেক দূর থেকে আসবে
+            
+            scene.add(ob);
+            obstacles.push(ob);
         }
 
         function spawnObstacleLoop() {
             if (!isGameOver) {
-                let delay = Math.max(400, 1200 - score * 3); 
                 spawnObstacle();
-                setTimeout(spawnObstacleLoop, delay);
+                // র‍্যান্ডম টাইমে অবস্টাকল আসবে যাতে বোরিং না লাগে (800ms থেকে 1200ms এর মধ্যে)
+                let randomDelay = OBSTACLE_SPAWN_RATE - 200 + Math.random() * 400;
+                setTimeout(spawnObstacleLoop, randomDelay);
             }
         }
 
+        // --- মেইন লুপ ---
         function animate() {
             requestAnimationFrame(animate);
             if (isGameOver) return;
 
-            // প্লেয়ার লেন মুভমেন্ট
-            player.position.x += (currentLane * laneWidth - player.position.x) * playerSpeed;
+            // ১. প্লেয়ার মুভমেন্ট
+            let targetX = currentLane * laneWidth;
+            player.position.x += (targetX - player.position.x) * playerLerpSpeed;
 
-            // জাম্প লজিক
+            // ২. জাম্প লজিক
             if (isJumping) {
                 player.position.y += jumpVelocity;
                 jumpVelocity -= gravity;
-                player.rotation.x -= 0.15; // স্পিন এফেক্ট
+                player.rotation.x -= 0.15;
                 if (player.position.y <= 0.5) {
                     player.position.y = 0.5;
                     isJumping = false;
                     player.rotation.x = 0;
                 }
-            } else {
-                player.position.y = 0.5 + Math.sin(Date.now() * 0.015) * 0.05; // বাউন্স
-                player.rotation.x = 0;
             }
 
-            // অবস্টাকল এবং কোলিশন
+            // ৩. অবস্টাকল মুভমেন্ট এবং চেক
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let ob = obstacles[i];
-                ob.position.z += gameSpeed;
+                ob.position.z += GAME_SPEED; // ফিক্সড স্পিড ব্যবহার হচ্ছে
 
-                // Hitbox লজিক
-                if (
-                    Math.abs(ob.position.z - player.position.z) < 1.2 && 
-                    Math.abs(ob.position.x - player.position.x) < 1.0 && 
-                    player.position.y < 1.2
-                ) {
-                    endGame();
+                // কলিশন (ধাক্কা লাগা)
+                if (ob.position.z > -1 && ob.position.z < 1) { // প্লেয়ারের কাছে আছে
+                    if (Math.abs(ob.position.x - player.position.x) < 1 && player.position.y < 1) {
+                        gameOver();
+                    }
                 }
 
+                // ক্লিনআপ (মেমোরি সেভ করার জন্য)
                 if (ob.position.z > 5) {
                     scene.remove(ob);
                     obstacles.splice(i, 1);
@@ -311,35 +256,33 @@
                     document.getElementById('score').innerText = score;
                 }
             }
-
-            // ফ্লোর ইনফিনিটি এফেক্ট
-            // গ্রিড এবং ফ্লোরকে আমরা মুভ করছি না, বরং অবস্টাকল মুভ হচ্ছে।
-            // তবে স্পিড ফিল দেওয়ার জন্য পার্টিকেল বা টেক্সচার মুভ করা যায় (সহজ রাখার জন্য বাদ দেওয়া হলো)।
-
-            gameSpeed += 0.0002;
+            
+            // ফ্লোর ইনফিনিটি ফিল
+            // এখানে স্পিড বাড়ানো হচ্ছে না
+            
             renderer.render(scene, camera);
         }
 
-        function endGame() {
+        function gameOver() {
             isGameOver = true;
             document.getElementById('final-score').innerText = score;
             document.getElementById('game-over-screen').style.display = 'block';
-            player.material.color.setHex(0x333333);
         }
 
         function restartGame() {
+            // ক্লিন করা
             obstacles.forEach(ob => scene.remove(ob));
             obstacles = [];
             score = 0;
-            gameSpeed = 0.5;
-            isGameOver = false;
             currentLane = 0;
-            player.position.x = 0;
-            player.material.color.setHex(COLORS.player);
+            isGameOver = false;
             
             document.getElementById('score').innerText = '0';
             document.getElementById('game-over-screen').style.display = 'none';
-
+            
+            player.position.x = 0;
+            player.rotation.set(0,0,0);
+            
             spawnObstacleLoop();
             animate();
         }
@@ -353,4 +296,4 @@
         init();
     </script>
 </body>
-    </html>
+</html>
