@@ -1,66 +1,215 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Fixed Speed Runner</title>
+    <title>Neon Runner TWA</title>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <script src='//libtl.com/sdk.js' data-zone='10416947' data-sdk='show_10416947'></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <style>
         body { 
             margin: 0; overflow: hidden; background: #000; 
             font-family: 'Segoe UI', sans-serif;
-            touch-action: none; user-select: none;
+            touch-action: none; user-select: none; color: white;
         }
-        #ui-container {
+
+        /* UI লেআউট */
+        .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+            display: flex; flex-direction: column; 
+            justify-content: center; align-items: center;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 100;
+            transition: opacity 0.3s;
         }
-        #score-board {
-            padding: 20px; color: #00ff88; font-size: 28px; font-weight: bold; text-shadow: 0 0 10px #00ff88;
+
+        .hidden { display: none !important; }
+
+        /* হোম স্ক্রিন */
+        h1 {
+            color: #00ff88; text-transform: uppercase; 
+            font-size: 40px; text-shadow: 0 0 20px #00ff88; margin-bottom: 10px;
         }
-        #game-over-screen {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            text-align: center; display: none; pointer-events: auto;
-            background: rgba(0, 0, 0, 0.9); padding: 30px; border: 2px solid #ff4444; border-radius: 10px;
+        
+        /* বাটন স্টাইল */
+        .btn-primary {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #000; border: none; padding: 15px 40px; 
+            font-size: 22px; font-weight: bold; cursor: pointer; 
+            border-radius: 50px; text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            margin-top: 20px;
         }
-        button {
-            background: #ff4444; color: #fff; border: none; padding: 10px 30px; font-size: 20px;
-            cursor: pointer; margin-top: 15px; border-radius: 5px;
+        .btn-primary:active { transform: scale(0.95); }
+
+        /* গেম ওভার স্ক্রিন */
+        #game-over-screen { z-index: 200; border: 2px solid #ff4444; background: rgba(0,0,0,0.9); }
+        .score-text { font-size: 24px; margin-bottom: 20px; }
+        .ad-status { color: #aaaaaa; font-size: 14px; margin-top: 10px; }
+
+        /* ইন-গেম স্কোর */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; padding: 20px;
+            pointer-events: none; z-index: 50;
+            font-size: 24px; font-weight: bold; color: #00ff88;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <div id="ui-container">
-        <div id="score-board">SCORE: <span id="score">0</span></div>
+
+    <div id="home-screen" class="screen">
+        <h1>Neon Run</h1>
+        <p>Telegram Endless Runner</p>
+        <button class="btn-primary" onclick="firstStart()">PLAY NOW</button>
     </div>
-    <div id="game-over-screen">
-        <h1 style="color:red; margin:0;">CRASHED!</h1>
-        <p style="color:white;">Score: <span id="final-score">0</span></p>
-        <button onclick="restartGame()">PLAY AGAIN</button>
+
+    <div id="hud" class="hidden">SCORE: <span id="score">0</span></div>
+
+    <div id="game-over-screen" class="screen hidden">
+        <h1 style="color: #ff4444; text-shadow: 0 0 20px #ff0000;">CRASHED!</h1>
+        <div class="score-text">Score: <span id="final-score">0</span></div>
+        
+        <button id="ad-btn" class="btn-primary" onclick="handleAdWatch()">
+            Watch Ad (1/3)
+        </button>
+        <p class="ad-status">Watch 3 ads to revive!</p>
     </div>
 
     <script>
-        // --- কনফিগারেশন (ফিক্সড স্পিড) ---
-        const GAME_SPEED = 0.6; // এই স্পিড কখনও চেঞ্জ হবে না
-        const SPAWN_RATE = 1000; // ১ সেকেন্ড পর পর বাধা আসবে
+        // --- Telegram Setup ---
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand(); // গেম ফুলস্ক্রিন করার জন্য
 
+        // --- Game Config ---
+        const GAME_SPEED = 0.6; 
+        const SPAWN_RATE = 1000;
+
+        // Variables
         let scene, camera, renderer, player;
         let obstacles = [];
         let score = 0;
+        let isGameRunning = false;
         let isGameOver = false;
-        let obstacleTimeout; // টাইমার ট্র্যাক করার জন্য
+        let obstacleTimeout;
+        
+        // Ad Logic Variables
+        let adsWatchedCount = 0;
+        const ADS_REQUIRED = 3;
 
-        // প্লেয়ার ভেরিয়েবল
+        // Player Controls
         let currentLane = 0; 
         const laneWidth = 3;
         let isJumping = false;
         let jumpVelocity = 0;
         const gravity = 0.03;
-
-        // টাচ ভেরিয়েবল
         let touchStartX = 0, touchStartY = 0;
 
-        function init() {
+        // --- UI Functions ---
+
+        function firstStart() {
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            
+            // প্রথমবার সিন ইনিশিয়ালাইজ এবং স্টার্ট
+            if (!renderer) {
+                initGameScene();
+            }
+            startGame();
+        }
+
+        // অ্যাড লজিক হ্যান্ডলার (সবচেয়ে গুরুত্বপূর্ণ অংশ)
+        function handleAdWatch() {
+            // Monetag এর ফাংশন কল করা হচ্ছে
+            if (typeof show_10416947 === 'function') {
+                show_10416947().then(() => {
+                    // অ্যাড সাকসেসফুলি কল হলে (নোট: সব অ্যাড নেটওয়ার্ক Promise রিটার্ন করে না, তবে সেফ থাকার জন্য ট্রাই করা)
+                    console.log('Ad called');
+                }).catch(e => {
+                    console.log('Ad script blocker or error', e);
+                });
+            } else {
+                alert("Ad script not loaded yet! Please check internet connection.");
+                // টেস্ট করার জন্য (অ্যাডব্লকার থাকলে যাতে আটকে না থাকেন)
+                // বাস্তব অ্যাপে নিচের লাইন মুছে দিতে পারেন যদি কড়াকড়ি চান
+                // processAdStep(); 
+                // return;
+            }
+
+            // যেহেতু আমরা নিশ্চিত হতে পারি না ইউজার অ্যাড পুরো দেখেছে কিনা (Script limitations),
+            // আমরা ধরে নেব ইউজার ক্লিক করলেই ১টি কাউন্ট হবে।
+            // Monetag সাধারণত পপ-আন্ডার বা ইন্টারস্টিশিয়াল ওপেন করে।
+            
+            processAdStep();
+        }
+
+        function processAdStep() {
+            adsWatchedCount++;
+            const btn = document.getElementById('ad-btn');
+
+            if (adsWatchedCount < ADS_REQUIRED) {
+                // বাটন টেক্সট আপডেট
+                btn.innerText = `Watch Ad (${adsWatchedCount + 1}/${ADS_REQUIRED})`;
+                btn.style.background = "linear-gradient(45deg, #ffaa00, #ff8800)"; // কালার চেঞ্জ
+            } else {
+                // ৩টা দেখা শেষ
+                btn.innerText = "STARTING...";
+                setTimeout(() => {
+                    restartGame();
+                }, 500);
+            }
+        }
+
+        function startGame() {
+            isGameRunning = true;
+            isGameOver = false;
+            score = 0;
+            currentLane = 0;
+            document.getElementById('score').innerText = '0';
+            
+            // রিসেট প্লেয়ার
+            player.position.set(0, 0.5, 0);
+            player.rotation.set(0, 0, 0);
+            
+            animate();
+            spawnObstacleLoop();
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            isGameRunning = false;
+            clearTimeout(obstacleTimeout);
+            
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+
+            // অ্যাড কাউন্টার রিসেট
+            adsWatchedCount = 0;
+            const btn = document.getElementById('ad-btn');
+            btn.innerText = `Watch Ad (1/${ADS_REQUIRED})`;
+            btn.style.background = "linear-gradient(45deg, #00ff88, #00cc6a)";
+        }
+
+        function restartGame() {
+            // ক্লিন সিন
+            obstacles.forEach(ob => scene.remove(ob));
+            obstacles = [];
+            
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            
+            startGame();
+        }
+
+        // --- 3D Game Logic ---
+
+        function initGameScene() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x101010);
             scene.fog = new THREE.Fog(0x101010, 20, 60);
@@ -73,110 +222,106 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // আলো
-            const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambient);
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
             const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
             dirLight.position.set(0, 10, 5);
             scene.add(dirLight);
 
-            // ফ্লোর গ্রিড
+            // Floor
             const grid = new THREE.GridHelper(200, 50, 0x00ff88, 0x222222);
             grid.position.z = -50;
             scene.add(grid);
 
-            // প্লেয়ার
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshLambertMaterial({ color: 0x00ff88 });
-            player = new THREE.Mesh(geometry, material);
+            // Player
+            player = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshLambertMaterial({ color: 0x00ff88 })
+            );
             player.position.y = 0.5;
             scene.add(player);
 
-            // ইনপুট লিসেনার
-            document.addEventListener('keydown', handleKey);
+            // Inputs
+            setupInputs();
+        }
+
+        function setupInputs() {
+            document.addEventListener('keydown', e => {
+                if(!isGameRunning) return;
+                if(e.key === 'ArrowLeft' && currentLane > -1) currentLane--;
+                if(e.key === 'ArrowRight' && currentLane < 1) currentLane++;
+                if((e.key === 'ArrowUp' || e.code === 'Space') && !isJumping) {
+                    isJumping = true; jumpVelocity = 0.6;
+                }
+            });
+
             document.addEventListener('touchstart', e => {
                 touchStartX = e.changedTouches[0].screenX;
                 touchStartY = e.changedTouches[0].screenY;
             });
-            document.addEventListener('touchend', handleTouch);
+
+            document.addEventListener('touchend', e => {
+                if(!isGameRunning) return;
+                let dx = e.changedTouches[0].screenX - touchStartX;
+                let dy = e.changedTouches[0].screenY - touchStartY;
+                if(Math.abs(dx) > Math.abs(dy)) {
+                    if(dx > 30 && currentLane < 1) currentLane++;
+                    if(dx < -30 && currentLane > -1) currentLane--;
+                } else if(dy < -30 && !isJumping) {
+                    isJumping = true; jumpVelocity = 0.6;
+                }
+            });
+            
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
-
-            // গেম শুরু
-            animate();
-            spawnObstacleLoop();
-        }
-
-        function handleKey(e) {
-            if(isGameOver) return;
-            if(e.key === 'ArrowLeft' && currentLane > -1) currentLane--;
-            if(e.key === 'ArrowRight' && currentLane < 1) currentLane++;
-            if((e.key === 'ArrowUp' || e.code === 'Space') && !isJumping) {
-                isJumping = true; jumpVelocity = 0.6;
-            }
-        }
-
-        function handleTouch(e) {
-            if(isGameOver) return;
-            let dx = e.changedTouches[0].screenX - touchStartX;
-            let dy = e.changedTouches[0].screenY - touchStartY;
-            if(Math.abs(dx) > Math.abs(dy)) {
-                if(dx > 30 && currentLane < 1) currentLane++;
-                if(dx < -30 && currentLane > -1) currentLane--;
-            } else if(dy < -30 && !isJumping) {
-                isJumping = true; jumpVelocity = 0.6;
-            }
         }
 
         function spawnObstacle() {
-            if(isGameOver) return;
-            const geo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
-            const mat = new THREE.MeshLambertMaterial({ color: 0xff0044 });
-            const ob = new THREE.Mesh(geo, mat);
+            if(!isGameRunning) return;
+            const ob = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 1.2, 1.2),
+                new THREE.MeshLambertMaterial({ color: 0xff0044 })
+            );
             ob.position.set((Math.floor(Math.random()*3)-1)*laneWidth, 0.6, -100);
             scene.add(ob);
             obstacles.push(ob);
         }
 
         function spawnObstacleLoop() {
-            if(isGameOver) return;
+            if(!isGameRunning) return;
             spawnObstacle();
-            // টাইমার সেট করা হচ্ছে এবং ভেরিয়েবলে রাখা হচ্ছে যাতে ক্লিয়ার করা যায়
             obstacleTimeout = setTimeout(spawnObstacleLoop, SPAWN_RATE);
         }
 
         function animate() {
-            if (isGameOver) return; // গেম ওভার হলে লুপ পুরোপুরি বন্ধ
+            if (!isGameRunning) return;
 
-            // ১. প্লেয়ার মুভমেন্ট
+            // Player Logic
             player.position.x += (currentLane * laneWidth - player.position.x) * 0.2;
-
             if (isJumping) {
                 player.position.y += jumpVelocity;
                 jumpVelocity -= gravity;
                 if (player.position.y <= 0.5) {
-                    player.position.y = 0.5;
-                    isJumping = false;
+                    player.position.y = 0.5; isJumping = false;
                 }
             }
 
-            // ২. অবস্টাকল মুভমেন্ট (ফিক্সড স্পিড)
+            // Obstacle Logic
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let ob = obstacles[i];
                 ob.position.z += GAME_SPEED;
 
-                // কলিশন চেক
+                // Collision
                 if (ob.position.z > -1 && ob.position.z < 1) {
                     if (Math.abs(ob.position.x - player.position.x) < 1 && player.position.y < 1) {
                         gameOver();
-                        return; // কলিশন হলে সাথে সাথে অ্যানিমেশন বন্ধ
+                        return;
                     }
                 }
-
-                // ক্লিনআপ
+                // Cleanup
                 if (ob.position.z > 5) {
                     scene.remove(ob);
                     obstacles.splice(i, 1);
@@ -186,40 +331,8 @@
             }
 
             renderer.render(scene, camera);
-            requestAnimationFrame(animate); // পরের ফ্রেম কল করা
+            requestAnimationFrame(animate);
         }
-
-        function gameOver() {
-            isGameOver = true;
-            clearTimeout(obstacleTimeout); // বাধা আসার টাইমার বন্ধ
-            document.getElementById('final-score').innerText = score;
-            document.getElementById('game-over-screen').style.display = 'block';
-        }
-
-        function restartGame() {
-            // আগের সব অবজেক্ট ক্লিন করা
-            obstacles.forEach(ob => scene.remove(ob));
-            obstacles = [];
-            
-            // ভেরিয়েবল রিসেট
-            score = 0;
-            currentLane = 0;
-            isGameOver = false; // ফ্ল্যাগ রিসেট
-            
-            // UI রিসেট
-            document.getElementById('score').innerText = '0';
-            document.getElementById('game-over-screen').style.display = 'none';
-            
-            // প্লেয়ার রিসেট
-            player.position.x = 0;
-            player.position.y = 0.5;
-            
-            // নতুন করে লুপ শুরু
-            animate(); 
-            spawnObstacleLoop();
-        }
-
-        init();
     </script>
 </body>
     </html>
