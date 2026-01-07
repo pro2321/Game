@@ -19,7 +19,7 @@ button {
     border-radius: 10px; text-transform: uppercase;
     margin: 10px; width: 280px;
     box-shadow: 0 5px 0 rgba(0,0,0,0.2);
-    transition: transform 0.05s; /* Faster button press feel */
+    transition: transform 0.05s; 
 }
 button:active { transform: translateY(4px); box-shadow: none; }
 
