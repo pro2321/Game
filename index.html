@@ -3,412 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Runner Ultimate</title>
+    <title>Village Run Ultimate</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='//libtl.com/sdk.js' data-zone='10416947' data-sdk='show_10416947'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <style>
-        /* বেসিক স্টাইল */
-        body { 
-            margin: 0; overflow: hidden; background: #050505; 
-            font-family: 'Segoe UI', sans-serif;
-            touch-action: none; user-select: none; color: white;
-        }
-        
-        /* সব স্ক্রিনের কমন স্টাইল */
-        .screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; 
-            justify-content: center; align-items: center;
-            background: rgba(0, 0, 0, 0.98);
-            z-index: 100;
-            transition: opacity 0.3s;
-            text-align: center;
-        }
-        .hidden { display: none !important; }
-
-        /* বাটন ডিজাইন */
-        button {
-            border: none; padding: 15px 30px; 
-            font-size: 18px; font-weight: bold; cursor: pointer; 
-            border-radius: 50px; text-transform: uppercase;
-            margin: 10px; width: 250px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            transition: transform 0.1s;
-        }
-        button:active { transform: scale(0.95); }
-
-        .btn-play { background: #00ff88; color: #000; box-shadow: 0 0 20px rgba(0, 255, 136, 0.4); }
-        .btn-info { background: #00ccff; color: #000; }
-        .btn-ad { background: #ffaa00; color: #000; }
-        .btn-restart { background: #ff4444; color: #fff; }
-        .btn-resume { background: #00ff88; color: #000; display: none; } /* শুরুতে হাইড থাকবে */
-
-        /* ফুটার (TOS/Privacy) */
-        .footer {
-            position: absolute; bottom: 20px; width: 100%;
-            font-size: 11px; color: #666;
-        }
-        .footer a { color: #888; text-decoration: underline; cursor: pointer; margin: 0 5px; }
-
-        /* পপ-আপ মোডাল (Terms/HowTo) */
-        .modal {
-            position: absolute; top: 5%; left: 5%; width: 90%; height: 90%;
-            background: #111; border: 1px solid #333; border-radius: 10px;
-            padding: 20px; box-sizing: border-box; overflow-y: auto;
-            z-index: 300; display: none;
-        }
-        .modal h2 { color: #00ff88; margin-top: 0; }
-        .modal p { color: #ccc; line-height: 1.6; font-size: 14px; text-align: left; }
-        .close-btn { 
-            background: #333; color: #fff; width: auto; 
-            padding: 5px 15px; font-size: 14px; margin-top: 20px; 
-        }
-
-        /* গেম ওভার টেক্সট */
-        .game-over-title { color: #ff4444; font-size: 40px; margin: 0 0 10px 0; text-shadow: 0 0 20px red; }
-        .score-box { font-size: 20px; margin-bottom: 30px; color: #fff; }
-
-        /* HUD */
-        #hud {
-            position: absolute; top: 20px; left: 20px;
-            font-size: 24px; font-weight: bold; color: #00ff88;
-            pointer-events: none; z-index: 50;
-        }
-    </style>
+    
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="home-screen" class="screen">
-        <h1 style="color:#00ff88; font-size:48px; margin-bottom:0; text-shadow: 0 0 15px #00ff88;">NEON RUN</h1>
-        <p style="color:#aaa; margin-bottom:40px;">Endless Telegram Runner</p>
-        
-        <button class="btn-play" onclick="initAndPlay()">PLAY GAME</button>
-        <button class="btn-info" onclick="openModal('howto-modal')">HOW TO PLAY</button>
-
+        <h1 style="color:#FFD700;">VILLAGE RUN</h1>
+        <p>Instant Response Edition</p>
+        <button class="btn-play" onclick="firstStart()">PLAY NOW</button>
+        <button class="btn-ad" onclick="openModal('howto-modal')" style="background:#fff; color:#333; border-bottom:5px solid #ccc;">HOW TO PLAY</button>
         <div class="footer">
-            By using our game you are accepting <br>
-            <a onclick="openModal('tos-modal')">Terms of Service</a> and 
-            <a onclick="openModal('privacy-modal')">Privacy Policy</a>.
+            By playing, you accept <a onclick="openModal('tos-modal')">Terms</a> & <a onclick="openModal('privacy-modal')">Privacy</a>
         </div>
     </div>
 
     <div id="hud" class="hidden">SCORE: <span id="score">0</span></div>
 
     <div id="game-over-screen" class="screen hidden">
-        <h1 class="game-over-title">CRASHED!</h1>
-        <div class="score-box">Score: <span id="final-score">0</span></div>
+        <h1 style="color:#FF4500;">CRASHED!</h1>
+        <p>Score: <span id="final-score">0</span></p>
         
-        <div style="border: 1px solid #333; padding: 20px; border-radius: 10px; background: #111; margin-bottom: 20px;">
-            <p style="margin:0 0 10px 0; color:#ffaa00; font-size:14px;">Revive to continue score!</p>
-            
-            <button id="btn-watch-ad" class="btn-ad" onclick="watchAd()">
-                WATCH AD (0/3)
-            </button>
-            
-            <button id="btn-resume-game" class="btn-resume" onclick="resumeGameAction()">
-                RESUME GAME
-            </button>
+        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin-bottom: 20px;">
+            <p style="font-size: 14px; margin: 0 0 10px 0;">Keep speed & score?</p>
+            <button id="btn-watch-ad" class="btn-ad" onclick="watchAd()">WATCH AD (0/3)</button>
+            <button id="btn-resume-game" class="btn-resume" onclick="resumeGame()">RESUME RUN</button>
         </div>
 
-        <button class="btn-restart" onclick="restartFullGame()">RESTART (Score 0)</button>
+        <button class="btn-restart" onclick="restartGame()">RESTART</button>
     </div>
 
     <div id="howto-modal" class="modal">
-        <h2>How To Play</h2>
-        <p>1. <b>PC:</b> Use Arrow Keys (Left/Right/Up).</p>
-        <p>2. <b>Mobile:</b> Swipe Left/Right to move. Swipe Up or Tap to Jump.</p>
-        <p>3. Avoid red blocks.</p>
-        <p>4. Run as far as you can to increase score!</p>
-        <button class="close-btn" onclick="closeModal('howto-modal')">BACK</button>
+        <h2>Controls</h2>
+        <ul>
+            <li><b>Swipe Left/Right:</b> Change Lane (Instant)</li>
+            <li><b>Swipe Up:</b> Jump</li>
+            <li><b>Tap & Hold:</b> Duck / Slide</li>
+        </ul>
+        <button class="close-btn" onclick="closeModal('howto-modal')">CLOSE</button>
     </div>
+    
+    <div id="tos-modal" class="modal"><h2>Terms</h2><p>Play fair.</p><button class="close-btn" onclick="closeModal('tos-modal')">CLOSE</button></div>
+    <div id="privacy-modal" class="modal"><h2>Privacy</h2><p>Ads by Monetag.</p><button class="close-btn" onclick="closeModal('privacy-modal')">CLOSE</button></div>
 
-    <div id="tos-modal" class="modal">
-        <h2>Terms of Service</h2>
-        <p>By playing this game, you agree to fair play rules. We reserve the right to ban users for suspicious activities. The game is provided "as is" without warranties.</p>
-        <button class="close-btn" onclick="closeModal('tos-modal')">CLOSE</button>
-    </div>
-
-    <div id="privacy-modal" class="modal">
-        <h2>Privacy Policy</h2>
-        <p>We do not collect personal data. We use third-party ad providers (Monetag) which may use cookies to serve relevant ads. By continuing, you consent to ad personalization.</p>
-        <button class="close-btn" onclick="closeModal('privacy-modal')">CLOSE</button>
-    </div>
-
-    <script>
-        // --- Game Variables ---
-        const GAME_SPEED = 0.6; // Fixed Speed
-        const SPAWN_RATE = 1000;
-
-        let scene, camera, renderer, player;
-        let obstacles = [];
-        let score = 0;
-        let isGameRunning = false;
-        let isGameOver = false;
-        let obstacleTimeout;
-        let animationId;
-
-        // Ad Logic Variables
-        let adCount = 0;
-        const ADS_REQUIRED = 3;
-
-        // Player Controls
-        let currentLane = 0;
-        const laneWidth = 3;
-        let isJumping = false;
-        let jumpVelocity = 0;
-        const gravity = 0.03;
-        let touchStartX = 0, touchStartY = 0;
-
-        // --- UI Interactions ---
-
-        function openModal(id) { document.getElementById(id).style.display = 'block'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-        function initAndPlay() {
-            document.getElementById('home-screen').classList.add('hidden');
-            document.getElementById('hud').classList.remove('hidden');
-            if (!renderer) init3D();
-            startGameLoop();
-        }
-
-        // --- Ad Logic (Fixed for Corruption) ---
-        function watchAd() {
-            const adBtn = document.getElementById('btn-watch-ad');
-            
-            // ১. চেক করা অ্যাড স্ক্রিপ্ট আছে কিনা
-            if (typeof show_10416947 !== 'function') {
-                alert("Ad blocked or no internet! Please check connection.");
-                return;
-            }
-
-            // ২. বাটন ডিজেবল করা যাতে ডাবল ক্লিক না হয়
-            adBtn.disabled = true;
-            adBtn.innerText = "LOADING AD...";
-
-            // ৩. অ্যাড কল করা (Promise Handling)
-            show_10416947().then(() => {
-                // অ্যাড সাকসেসফুলি দেখা শেষ হলে এখানে আসবে
-                adCount++;
-                updateAdUI();
-            }).catch((err) => {
-                // অ্যাড লোড না হলে বা এরর খেলে
-                console.error(err);
-                adBtn.innerText = "AD FAILED. TRY AGAIN";
-                adBtn.disabled = false;
-            });
-        }
-
-        function updateAdUI() {
-            const adBtn = document.getElementById('btn-watch-ad');
-            const resumeBtn = document.getElementById('btn-resume-game');
-
-            if (adCount < ADS_REQUIRED) {
-                // এখনো অ্যাড বাকি আছে
-                adBtn.disabled = false;
-                adBtn.innerText = `WATCH AD (${adCount}/${ADS_REQUIRED})`;
-            } else {
-                // ৩টা দেখা শেষ
-                adBtn.style.display = 'none'; // অ্যাড বাটন গায়েব
-                resumeBtn.style.display = 'inline-block'; // Resume বাটন দৃশ্যমান
-            }
-        }
-
-        // Resume Button Click Action
-        function resumeGameAction() {
-            document.getElementById('game-over-screen').classList.add('hidden');
-            document.getElementById('hud').classList.remove('hidden');
-            
-            // প্লেয়ারকে সেফ পজিশনে আনা
-            player.position.set(0, 0.5, 0);
-            currentLane = 0;
-            // সামনের সব বাধা মুছে ফেলা যাতে শুরুতেই না মরে
-            obstacles.forEach(ob => scene.remove(ob));
-            obstacles = [];
-
-            isGameOver = false;
-            isGameRunning = true;
-            
-            animate();
-            spawnObstacleLoop();
-        }
-
-        // Restart Full Game Action
-        function restartFullGame() {
-            score = 0; // স্কোর জিরো
-            document.getElementById('score').innerText = '0';
-            
-            // বাকি কাজ Resume এর মতোই (UI হাইড, অবস্টাকল ক্লিন)
-            resumeGameAction();
-        }
-
-        // --- 3D Engine & Logic ---
-
-        function init3D() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            scene.fog = new THREE.Fog(0x050505, 10, 50);
-
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(0, 4, 8);
-            camera.lookAt(0, 0, -6);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            // Lights
-            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            const dLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            dLight.position.set(5, 10, 5);
-            scene.add(dLight);
-
-            // Grid Floor
-            const grid = new THREE.GridHelper(200, 50, 0x00ff88, 0x111111);
-            grid.position.z = -50;
-            scene.add(grid);
-
-            // Player
-            player = new THREE.Mesh(
-                new THREE.BoxGeometry(1, 1, 1),
-                new THREE.MeshLambertMaterial({ color: 0x00ff88 })
-            );
-            player.position.y = 0.5;
-            scene.add(player);
-
-            setupControls();
-        }
-
-        function setupControls() {
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-
-            document.addEventListener('keydown', e => {
-                if(!isGameRunning) return;
-                if(e.key === 'ArrowLeft' && currentLane > -1) currentLane--;
-                if(e.key === 'ArrowRight' && currentLane < 1) currentLane++;
-                if((e.key === 'ArrowUp' || e.code === 'Space') && !isJumping) {
-                    isJumping = true; jumpVelocity = 0.6;
-                }
-            });
-
-            document.addEventListener('touchstart', e => {
-                touchStartX = e.changedTouches[0].screenX;
-                touchStartY = e.changedTouches[0].screenY;
-            });
-            document.addEventListener('touchend', e => {
-                if(!isGameRunning) return;
-                let dx = e.changedTouches[0].screenX - touchStartX;
-                let dy = e.changedTouches[0].screenY - touchStartY;
-                if(Math.abs(dx) > Math.abs(dy)) {
-                    if(dx > 30 && currentLane < 1) currentLane++;
-                    if(dx < -30 && currentLane > -1) currentLane--;
-                } else if(dy < -30 && !isJumping) {
-                    isJumping = true; jumpVelocity = 0.6;
-                }
-            });
-        }
-
-        function startGameLoop() {
-            // ক্লিনআপ
-            obstacles.forEach(ob => scene.remove(ob));
-            obstacles = [];
-            score = 0;
-            currentLane = 0;
-            document.getElementById('score').innerText = '0';
-            player.position.set(0, 0.5, 0);
-
-            isGameRunning = true;
-            isGameOver = false;
-            
-            animate();
-            spawnObstacleLoop();
-        }
-
-        function spawnObstacle() {
-            if(!isGameRunning) return;
-            const ob = new THREE.Mesh(
-                new THREE.BoxGeometry(1.2, 1.2, 1.2),
-                new THREE.MeshLambertMaterial({ color: 0xff4444 })
-            );
-            // Random Lane (-1, 0, 1)
-            let lane = Math.floor(Math.random() * 3) - 1;
-            ob.position.set(lane * laneWidth, 0.6, -80);
-            scene.add(ob);
-            obstacles.push(ob);
-        }
-
-        function spawnObstacleLoop() {
-            if(!isGameRunning) return;
-            spawnObstacle();
-            obstacleTimeout = setTimeout(spawnObstacleLoop, SPAWN_RATE);
-        }
-
-        function triggerGameOver() {
-            isGameOver = true;
-            isGameRunning = false;
-            clearTimeout(obstacleTimeout);
-            cancelAnimationFrame(animationId);
-
-            // UI আপডেট
-            document.getElementById('hud').classList.add('hidden');
-            document.getElementById('final-score').innerText = score;
-            document.getElementById('game-over-screen').classList.remove('hidden');
-
-            // অ্যাড সিস্টেম রিসেট
-            adCount = 0;
-            const adBtn = document.getElementById('btn-watch-ad');
-            const resumeBtn = document.getElementById('btn-resume-game');
-            
-            adBtn.style.display = 'inline-block'; // অ্যাড বাটন দেখাও
-            adBtn.disabled = false;
-            adBtn.innerText = `WATCH AD (0/${ADS_REQUIRED})`;
-            
-            resumeBtn.style.display = 'none'; // Resume বাটন লুকাও
-        }
-
-        function animate() {
-            if(!isGameRunning) return;
-
-            // Player logic
-            player.position.x += (currentLane * laneWidth - player.position.x) * 0.2;
-            if(isJumping) {
-                player.position.y += jumpVelocity;
-                jumpVelocity -= gravity;
-                if(player.position.y <= 0.5) {
-                    player.position.y = 0.5; isJumping = false;
-                }
-            }
-
-            // Obstacle Logic
-            for(let i=obstacles.length-1; i>=0; i--) {
-                let ob = obstacles[i];
-                ob.position.z += GAME_SPEED;
-
-                // Collision
-                if(ob.position.z > -1 && ob.position.z < 1) {
-                    if(Math.abs(ob.position.x - player.position.x) < 1 && player.position.y < 1) {
-                        triggerGameOver();
-                        return;
-                    }
-                }
-
-                if(ob.position.z > 5) {
-                    scene.remove(ob);
-                    obstacles.splice(i, 1);
-                    score++;
-                    document.getElementById('score').innerText = score;
-                }
-            }
-
-            renderer.render(scene, camera);
-            animationId = requestAnimationFrame(animate);
-        }
-    </script>
+    <script src="script.js"></script>
 </body>
-    </html>
+</html>
