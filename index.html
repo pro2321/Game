@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Village Run Ultimate</title>
+    <title>Village Run - GitHub Edition</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='//libtl.com/sdk.js' data-zone='10416947' data-sdk='show_10416947'></script>
@@ -15,7 +15,7 @@
 
     <div id="home-screen" class="screen">
         <h1 style="color:#FFD700;">VILLAGE RUN</h1>
-        <p>Instant Response Edition</p>
+        <p>Double Tap to Slide!</p>
         <button class="btn-play" onclick="firstStart()">PLAY NOW</button>
         <button class="btn-ad" onclick="openModal('howto-modal')" style="background:#fff; color:#333; border-bottom:5px solid #ccc;">HOW TO PLAY</button>
         <div class="footer">
@@ -30,7 +30,7 @@
         <p>Score: <span id="final-score">0</span></p>
         
         <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin-bottom: 20px;">
-            <p style="font-size: 14px; margin: 0 0 10px 0;">Keep speed & score?</p>
+            <p style="font-size: 14px; margin: 0 0 10px 0;">Revive & Continue?</p>
             <button id="btn-watch-ad" class="btn-ad" onclick="watchAd()">WATCH AD (0/3)</button>
             <button id="btn-resume-game" class="btn-resume" onclick="resumeGame()">RESUME RUN</button>
         </div>
@@ -41,9 +41,9 @@
     <div id="howto-modal" class="modal">
         <h2>Controls</h2>
         <ul>
-            <li><b>Swipe Left/Right:</b> Change Lane (Instant)</li>
+            <li><b>Swipe Left/Right:</b> Change Lane</li>
             <li><b>Swipe Up:</b> Jump</li>
-            <li><b>Tap & Hold:</b> Duck / Slide</li>
+            <li><b>Double Tap:</b> Slide / Duck (For High Walls)</li>
         </ul>
         <button class="close-btn" onclick="closeModal('howto-modal')">CLOSE</button>
     </div>
