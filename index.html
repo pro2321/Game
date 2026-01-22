@@ -3,54 +3,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Village Run - GitHub Edition</title>
+    <title>Village Run - Enhanced Edition</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='//libtl.com/sdk.js' data-zone='10416947' data-sdk='show_10416947'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
-    <div id="home-screen" class="screen">
-        <h1 style="color:#FFD700;">VILLAGE RUN</h1>
-        <p>Double Tap to Slide!</p>
-        <button class="btn-play" onclick="firstStart()">PLAY NOW</button>
-        <button class="btn-ad" onclick="openModal('howto-modal')" style="background:#fff; color:#333; border-bottom:5px solid #ccc;">HOW TO PLAY</button>
-        <div class="footer">
-            By playing, you accept <a onclick="openModal('tos-modal')">Terms</a> & <a onclick="openModal('privacy-modal')">Privacy</a>
+    <!-- Ad Containers -->
+    <div id="banner-ad" class="ad-container"></div>
+    <div id="interstitial-ad" class="ad-overlay hidden">
+        <div class="ad-content">
+            <h3>Advertisement</h3>
+            <div id="ad-display"></div>
+            <button class="btn-close-ad" onclick="closeInterstitial()">
+                <i class="fas fa-times"></i> Close in <span id="countdown">5</span>s
+            </button>
         </div>
     </div>
 
-    <div id="hud" class="hidden">SCORE: <span id="score">0</span></div>
+    <div id="home-screen" class="screen">
+        <div class="title-container">
+            <h1 class="title-glow">VILLAGE RUN</h1>
+            <div class="subtitle">ENDLESS ADVENTURE</div>
+        </div>
+        <div class="character-preview">
+            <div class="character" id="current-character"></div>
+        </div>
+        <p class="game-tip"><i class="fas fa-mobile-alt"></i> Double Tap to Slide!</p>
+        
+        <div class="button-group">
+            <button class="btn-play" onclick="firstStart()">
+                <i class="fas fa-play"></i> PLAY NOW
+            </button>
+            <button class="btn-ad" onclick="openModal('howto-modal')">
+                <i class="fas fa-gamepad"></i> HOW TO PLAY
+            </button>
+            <button class="btn-ad" onclick="openCharacterSelect()">
+                <i class="fas fa-user"></i> CHARACTER
+            </button>
+            <button class="btn-ad" onclick="openShop()">
+                <i class="fas fa-store"></i> SHOP
+            </button>
+        </div>
+        
+        <div class="stats-bar">
+            <div class="stat">
+                <i class="fas fa-trophy"></i>
+                <span id="high-score">0</span>
+            </div>
+            <div class="stat">
+                <i class="fas fa-coins"></i>
+                <span id="coins">0</span>
+            </div>
+            <div class="stat">
+                <i class="fas fa-gem"></i>
+                <span id="gems">0</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            By playing, you accept <a onclick="openModal('tos-modal')">Terms</a> & 
+            <a onclick="openModal('privacy-modal')">Privacy</a> | 
+            <a onclick="openModal('credits-modal')">Credits</a>
+        </div>
+    </div>
+
+    <div id="hud" class="hidden">
+        <div class="hud-top">
+            <div class="hud-item">
+                <i class="fas fa-tachometer-alt"></i> SPEED: <span id="speed">0</span>
+            </div>
+            <div class="hud-item">
+                <i class="fas fa-running"></i> DISTANCE: <span id="distance">0</span>m
+            </div>
+        </div>
+        <div class="hud-center">
+            <div class="score-display">
+                <i class="fas fa-star"></i> SCORE: <span id="score">0</span>
+            </div>
+            <div class="multiplier">
+                <i class="fas fa-bolt"></i> COMBO: <span id="multiplier">1.0x</span>
+            </div>
+        </div>
+        <div class="hud-bottom">
+            <div class="powerup-display">
+                <button class="powerup-btn" id="magnet-btn" onclick="activatePowerup('magnet')">
+                    <i class="fas fa-magnet"></i>
+                </button>
+                <button class="powerup-btn" id="shield-btn" onclick="activatePowerup('shield')">
+                    <i class="fas fa-shield-alt"></i>
+                </button>
+                <button class="powerup-btn" id="speed-btn" onclick="activatePowerup('speed')">
+                    <i class="fas fa-bolt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div id="game-over-screen" class="screen hidden">
-        <h1 style="color:#FF4500;">CRASHED!</h1>
-        <p>Score: <span id="final-score">0</span></p>
-        
-        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin-bottom: 20px;">
-            <p style="font-size: 14px; margin: 0 0 10px 0;">Revive & Continue?</p>
-            <button id="btn-watch-ad" class="btn-ad" onclick="watchAd()">WATCH AD (0/3)</button>
-            <button id="btn-resume-game" class="btn-resume" onclick="resumeGame()">RESUME RUN</button>
+        <div class="game-over-content">
+            <h1 class="game-over-title">
+                <i class="fas fa-skull-crossbones"></i> GAME OVER
+            </h1>
+            
+            <div class="score-summary">
+                <div class="score-item">
+                    <span class="label">SCORE</span>
+                    <span class="value" id="final-score">0</span>
+                </div>
+                <div class="score-item">
+                    <span class="label">BEST</span>
+                    <span class="value" id="best-score">0</span>
+                </div>
+                <div class="score-item">
+                    <span class="label">COINS</span>
+                    <span class="value">+<span id="earned-coins">0</span></span>
+                </div>
+            </div>
+            
+            <div class="revive-section">
+                <div class="revive-header">
+                    <i class="fas fa-heart"></i> CONTINUE YOUR RUN
+                </div>
+                <button id="btn-watch-ad" class="btn-ad" onclick="watchAd()">
+                    <i class="fas fa-ad"></i> WATCH AD (<span id="ad-count">0</span>/3)
+                </button>
+                <button id="btn-resume-game" class="btn-resume" onclick="resumeGame()">
+                    <i class="fas fa-play-circle"></i> RESUME RUN
+                </button>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn-restart" onclick="restartGame()">
+                    <i class="fas fa-redo"></i> RESTART
+                </button>
+                <button class="btn-share" onclick="shareScore()">
+                    <i class="fas fa-share-alt"></i> SHARE
+                </button>
+                <button class="btn-home" onclick="goHome()">
+                    <i class="fas fa-home"></i> HOME
+                </button>
+            </div>
+            
+            <div class="daily-challenge">
+                <h4><i class="fas fa-calendar-day"></i> DAILY CHALLENGE</h4>
+                <div class="challenge-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="challenge-progress"></div>
+                    </div>
+                    <span>Score 500 points</span>
+                </div>
+            </div>
         </div>
-
-        <button class="btn-restart" onclick="restartGame()">RESTART</button>
     </div>
 
+    <!-- Modals -->
     <div id="howto-modal" class="modal">
-        <h2>Controls</h2>
-        <ul>
-            <li><b>Swipe Left/Right:</b> Change Lane</li>
-            <li><b>Swipe Up:</b> Jump</li>
-            <li><b>Double Tap:</b> Slide / Duck (For High Walls)</li>
-        </ul>
-        <button class="close-btn" onclick="closeModal('howto-modal')">CLOSE</button>
+        <h2><i class="fas fa-graduation-cap"></i> HOW TO PLAY</h2>
+        <div class="controls-grid">
+            <div class="control-item">
+                <div class="control-icon swipe-left"></div>
+                <h3>Swipe Left/Right</h3>
+                <p>Change lanes to avoid obstacles</p>
+            </div>
+            <div class="control-item">
+                <div class="control-icon swipe-up"></div>
+                <h3>Swipe Up</h3>
+                <p>Jump over barriers</p>
+            </div>
+            <div class="control-item">
+                <div class="control-icon double-tap"></div>
+                <h3>Double Tap</h3>
+                <p>Slide under high walls</p>
+            </div>
+            <div class="control-item">
+                <div class="control-icon tap"></div>
+                <h3>Tap Powerups</h3>
+                <p>Collect special abilities</p>
+            </div>
+        </div>
+        <button class="close-btn" onclick="closeModal('howto-modal')">
+            <i class="fas fa-times"></i> CLOSE
+        </button>
     </div>
     
-    <div id="tos-modal" class="modal"><h2>Terms</h2><p>Play fair.</p><button class="close-btn" onclick="closeModal('tos-modal')">CLOSE</button></div>
-    <div id="privacy-modal" class="modal"><h2>Privacy</h2><p>Ads by Monetag.</p><button class="close-btn" onclick="closeModal('privacy-modal')">CLOSE</button></div>
+    <div id="shop-modal" class="modal">
+        <h2><i class="fas fa-store"></i> SHOP</h2>
+        <div class="shop-items" id="shop-items"></div>
+        <button class="close-btn" onclick="closeModal('shop-modal')">
+            <i class="fas fa-times"></i> CLOSE
+        </button>
+    </div>
+    
+    <div id="character-modal" class="modal">
+        <h2><i class="fas fa-users"></i> SELECT CHARACTER</h2>
+        <div class="characters-grid" id="characters-grid"></div>
+        <button class="close-btn" onclick="closeModal('character-modal')">
+            <i class="fas fa-times"></i> CLOSE
+        </button>
+    </div>
+    
+    <div id="tos-modal" class="modal">
+        <h2>TERMS OF SERVICE</h2>
+        <p>Play fair. Ads are required to play this free game.</p>
+        <button class="close-btn" onclick="closeModal('tos-modal')">CLOSE</button>
+    </div>
+    
+    <div id="privacy-modal" class="modal">
+        <h2>PRIVACY POLICY</h2>
+        <p>This game uses ads for monetization. No personal data is collected.</p>
+        <button class="close-btn" onclick="closeModal('privacy-modal')">CLOSE</button>
+    </div>
+    
+    <div id="credits-modal" class="modal">
+        <h2><i class="fas fa-code"></i> CREDITS</h2>
+        <p>Game developed with Three.js</p>
+        <p>Ads powered by Monetag</p>
+        <p>Enhanced Village Run 2.0</p>
+        <button class="close-btn" onclick="closeModal('credits-modal')">CLOSE</button>
+    </div>
+
+    <!-- Audio -->
+    <audio id="bg-music" loop>
+        <source src="https://assets.mixkit.co/music/preview/mixkit-game-show-suspense-waiting-667.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="jump-sound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-jump-arcade-game-166.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="coin-sound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="crash-sound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-explosion-hit-2794.mp3" type="audio/mpeg">
+    </audio>
 
     <script src="script.js"></script>
 </body>
-</html>
+    </html>
